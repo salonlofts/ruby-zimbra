@@ -156,7 +156,7 @@ module Zimbra
     end
     
     def last_instance_time
-      instance_times = Zimbra::AppointmentService.find_all_instances_of_an_appointment(self)
+      instance_times = Zimbra::AppointmentService.find_all_instance_times_of_an_appointment(self)
       return nil unless instance_times && instance_times.count > 0
       instance_times.max
     end
@@ -171,25 +171,59 @@ module Zimbra
   
   class AppointmentService < HandsoapAccountService
     def find_all_by_calendar_id(calendar_id)
-      xml = invoke("n2:SearchRequest") do |message|
-        Builder.find_all_with_query(message, "inid:#{calendar_id}")
+      appointment_attributes = []
+      cursor = nil
+      while(true) do
+        xml = invoke("n2:SearchRequest") do |message|
+          Builder.find_all_with_query(message, "inid:#{calendar_id}", cursor)
+        end
+        
+        new_results = Parser.get_search_response(xml)
+        
+        return appointment_attributes if new_results.empty?
+        
+        appointment_attributes += new_results
+        
+        cursor = new_results.last[:appt][:attributes][:id]
       end
-      Parser.get_search_response(xml)
     end
     
-    def find_all_instances_of_an_appointment(appointment)
-      xml = invoke("n2:SearchRequest") do |message|
-        message.set_attr 'query', "date:#{appointment.date.to_i * 1000}"
-        message.set_attr 'types', 'appointment'
-        message.set_attr 'calExpandInstStart', '1'
-        message.set_attr 'calExpandInstEnd', (Time.now + (86400 * 365 * 10)).to_i * 1000
+    def find_all_instance_times_of_an_appointment(appointment)
+      instance_times = []
+      
+      cursor = nil
+      while(true) do
+        xml = invoke("n2:SearchRequest") do |message|
+          message.set_attr 'query', "date:#{appointment.date.to_i * 1000}"
+          message.set_attr 'types', 'appointment'
+          message.set_attr 'calExpandInstStart', '1'
+          message.set_attr 'calExpandInstEnd', (Time.now + (86400 * 365 * 10)).to_i * 1000
+
+          if cursor
+            message.add 'cursor' do |cursor_element|
+              cursor_element.set_attr 'id', cursor
+            end
+          end
+        end
+        response_hash = Zimbra::Hash.from_xml(xml.document.to_s)
+        response_hash = response_hash[:Envelope][:Body][:SearchResponse]
+
+        appointments = if response_hash[:appt].nil?
+          []
+        elsif response_hash[:appt].is_a?(Array)
+          response_hash[:appt]
+        else
+          [response_hash[:appt]]
+        end
+        
+        return instance_times if appointments.empty?
+        
+        cursor = appointments.last[:attributes][:id]
+        
+        appt_hash = appointments.find { |appt| appt[:attributes][:id] == appointment.id }
+        instances = appt_hash[:inst].is_a?(Array) ? appt_hash[:inst] : [appt_hash[:inst]]
+        instance_times += instances.collect { |inst| Time.at(inst[:attributes][:s] / 1000) }
       end
-      response_hash = Zimbra::Hash.from_xml(xml.document.to_s)
-      response_hash = response_hash[:Envelope][:Body][:SearchResponse]
-      appointments = response_hash[:appt].is_a?(Array) ? response_hash[:appt] : [response_hash[:appt]]
-      appt_hash = appointments.find { |appt| appt[:attributes][:id] == appointment.id }
-      instances = appt_hash[:inst].is_a?(Array) ? appt_hash[:inst] : [appt_hash[:inst]]
-      instances.collect { |inst| Time.at(inst[:attributes][:s] / 1000) }
     end
     
     def find_all_by_calendar_id_since(calendar_id, since_date)
@@ -231,9 +265,14 @@ module Zimbra
     
     class Builder
       class << self
-        def find_all_with_query(message, query)
+        def find_all_with_query(message, query, cursor = nil)
           message.set_attr 'query', query
           message.set_attr 'types', 'appointment'
+          if cursor
+            message.add 'cursor' do |cursor_element|
+              cursor_element.set_attr 'id', cursor
+            end
+          end
         end
         
         def find_by_id(message, id)
