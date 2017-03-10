@@ -14,6 +14,7 @@ require 'zimbra/calendar'
 require 'zimbra/appointment'
 require 'zimbra/ext/hash'
 require 'zimbra/extra/date_helpers'
+require 'zimbra/contact'
 
 # Manages a Zimbra SOAP session.  Offers ability to set the endpoint URL, log in, and enable debugging.
 module Zimbra
