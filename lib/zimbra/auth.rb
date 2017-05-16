@@ -35,7 +35,10 @@ module Zimbra
     class Parser
       class << self
         def auth_token(response)
-          (response/'//n2:authToken').to_s
+          auth_token = (response/'//n2:authToken').to_s
+          lifetime = (response/'//n2:lifetime').to_i
+          
+          Zimbra::AuthToken.new(token: auth_token, lifetime: lifetime)
         end
       end
     end

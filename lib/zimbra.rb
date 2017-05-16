@@ -2,6 +2,7 @@ $:.unshift(File.join(File.dirname(__FILE__)))
 require 'zimbra/handsoap_service'
 require 'zimbra/handsoap_account_service'
 require 'zimbra/auth'
+require 'zimbra/auth_token'
 require 'zimbra/cos'
 require 'zimbra/domain'
 require 'zimbra/distribution_list'
@@ -52,17 +53,25 @@ module Zimbra
 
     # Authorization token - obtained after successful login
     def auth_token
-      @@auth_token
+      @@auth_token.token
     end
     
     def account_auth_token
-      @@account_auth_token
+      @@account_auth_token.token
+    end
+
+    def auth_token_expired?
+      @@auth_token.expired?
+    end
+    
+    def account_auth_token_expired?
+      @@account_auth_token.expired?
     end
 
     # Log into the zimbra SOAP service.  This is required before any other action is performed
     # If a login has already been performed, another login will not be attempted
     def login(username, password)
-      return @@auth_token if defined?(@@auth_token) && @@auth_token
+      return @@auth_token if defined?(@@auth_token) && @@auth_token && !@@auth_token.expired?
       reset_login(username, password)
     end
 
@@ -72,9 +81,11 @@ module Zimbra
     end
     
     def account_login(username)
-      delegate_auth_token = DelegateAuthToken.for_account_name(username)
+      return @@account_auth_token if defined?(@@account_auth_token) && @@account_auth_token && !@@account_auth_token.expired?
+      delegate_auth_token = DelegateAuthTokenService.get_by_account_name(username)
       return false unless delegate_auth_token
-      @@account_auth_token = delegate_auth_token.token
+
+      @@account_auth_token = delegate_auth_token
       true
     end
   end
