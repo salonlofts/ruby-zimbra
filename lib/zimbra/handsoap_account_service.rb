@@ -34,7 +34,7 @@ module Zimbra
       header = doc.find("Header")
       header.add "n1:context" do |s|
         s.set_attr "env:mustUnderstand", "0"
-        s.add "n1:authToken", Zimbra.account_auth_token
+        s.add "n1:authToken", Zimbra.account_auth_token.token
       end
     end
     def on_response_document(doc)

@@ -53,19 +53,11 @@ module Zimbra
 
     # Authorization token - obtained after successful login
     def auth_token
-      @@auth_token.token
+      @@auth_token ||= nil
     end
     
     def account_auth_token
-      @@account_auth_token.token
-    end
-
-    def auth_token_expired?
-      @@auth_token.expired?
-    end
-    
-    def account_auth_token_expired?
-      @@account_auth_token.expired?
+      @@account_auth_token ||= nil
     end
 
     # Log into the zimbra SOAP service.  This is required before any other action is performed
