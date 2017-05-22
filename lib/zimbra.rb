@@ -73,12 +73,15 @@ module Zimbra
     end
     
     def account_login(username)
-      return @@account_auth_token if defined?(@@account_auth_token) && @@account_auth_token && !@@account_auth_token.expired?
       delegate_auth_token = DelegateAuthTokenService.get_by_account_name(username)
       return false unless delegate_auth_token
 
       @@account_auth_token = delegate_auth_token
       true
+    end
+
+    def account_logout
+      @@account_auth_token = nil
     end
   end
 end
