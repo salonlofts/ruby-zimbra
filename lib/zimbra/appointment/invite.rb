@@ -3,7 +3,7 @@ module Zimbra
     class Invite
       ATTRS = [
         :appointment, 
-        :id, :recurrence_id, :sequence_number, 
+        :id, :recurrence_id, :sequence_number, :uid, 
         
         :start_date_time, :end_date_time, :date,
         :name, :fragment, :description, :alarm, :alarm_zimbra_attributes, :alarm_attributes, :recurrence_rule, :recurrence_rule_zimbra_attributes, :recurrence_rule_attributes, 
@@ -222,6 +222,7 @@ module Zimbra
           comp.set_attr "name", name
           comp.set_attr "transp", transparency_to_zimbra if transparency
           comp.set_attr "d", date.to_i * 1000 if date
+          comp.set_attr "uid", uid if uid
           
           if is_organizer
             comp.set_attr "neverSent", never_sent ? 1 : 0
