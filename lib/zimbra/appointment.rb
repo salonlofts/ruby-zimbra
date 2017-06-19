@@ -261,6 +261,13 @@ module Zimbra
       xml = invoke("n2:CancelAppointmentRequest") do |message|
         Builder.cancel(message, appointment.id, invite_id)
       end
+
+      xml = invoke("n2:ItemActionRequest") do |message|
+        message.add "action" do |action|
+          action.set_attr 'id', appointment.id
+          action.set_attr 'op', 'delete'
+        end
+      end
     end
     
     class Builder
